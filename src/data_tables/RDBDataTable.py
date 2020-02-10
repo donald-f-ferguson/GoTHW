@@ -1,6 +1,4 @@
-from src.BaseDataTable import BaseDataTable
-from src.DerivedDataTable import DerivedDataTable
-from src.RDBKeyInfo import RDBKeyInfo
+from src.data_tables.BaseDataTable import BaseDataTable
 
 import pandas as pd
 import pymysql
@@ -21,27 +19,29 @@ class RDBDataTable(BaseDataTable):
         'host': 'localhost',
         'user': 'dbuser',
         'password': 'dbuserdbuser',
-        'db': 'newbook',
+        'db': 'W4111GoTSolutionClean',
         'port': 3306
     }
 
     _default_cnx = None
 
-    @classmethod
-    def _get_default_cnx(cls):
+    def _get_cnx(self):
 
-        if RDBDataTable._default_cnx is None:
-            # Create a connection to use inside this object. In general, this is not the right approach.
-            # There would be a connection pool shared across many classes and applications.
-            cls._default_cnx = pymysql.connect(
-                host=cls._default_connect_info['host'],
-                user=cls._default_connect_info['user'],
-                password=cls._default_connect_info['password'],
-                db=cls._default_connect_info['db'],
+        if self._cnx is None:
+            if self._connect_info is None:
+                c_info = RDBDataTable._default_connect_info
+            else:
+                c_info = self._connect_info
+
+            self._cnx = pymysql.connect(
+                host=c_info['host'],
+                user=c_info['user'],
+                password=c_info['password'],
+                db=c_info['db'],
                 charset='utf8mb4',
                 cursorclass=pymysql.cursors.DictCursor)
 
-        return cls._default_cnx
+        return self._cnx
 
     def __init__(self, table_name, key_columns=None, connect_info=None):
         """
@@ -53,18 +53,27 @@ class RDBDataTable(BaseDataTable):
         """
 
         # If there is not explicit connect information, use the defaults.
+
+        if key_columns is not None:
+            raise ValueError("This is an RDB Data Table. We figure out the keys by querying the DB.")
+
+        ####### Your Code Goes Here #########
         pass
 
+
+        ####### Your Code Goes Here #########
 
     def __str__(self):
         """
 
         :return: String representation of the table's metadata.
         """
+        ####### Your Code Goes Here #########
         pass
 
-    @classmethod
-    def _run_q(cls, q, args=None, fields=None, fetch=True, cnx=None, commit=True):
+        ####### Your Code Goes Here #########
+
+    def _run_q(self, q, args=None, fields=None, fetch=True, cnx=None, cursor=None, commit=True):
         """
 
         :param q: An SQL query string that may have %s slots for argument insertion. The string
@@ -72,34 +81,55 @@ class RDBDataTable(BaseDataTable):
         :param args: A tuple of values to insert in the %s slots.
         :param fetch: If true, return the result.
         :param cnx: A database connection. May be None
+        :param cncursor: Do not worry about this for now.
         :param commit: Do not worry about this for now. This is more wizard stuff.
         :return: A result set or None.
         """
 
-        # Use the connection in the object if no connection provided.
+        r = None
+
+        cursor_created = False
+
         if cnx is None:
-            cnx = cls._get_default_cnx()
+            cnx = self._get_cnx()
 
-        # Convert the list of columns into the form "col1, col2, ..." for following SELECT.
-        if fields:
-            q = q.format(",".join(fields))
+        try:
+            # Use the connection in the object if no connection provided.
 
-        cursor = cnx.cursor()  # Just ignore this for now.
+            # Convert the list of columns into the form "col1, col2, ..." for following SELECT.
+            if fields:
+                q = q.format(",".join(fields))
+            else:
+                q = q.format('*')
 
-        # If debugging is turned on, will print the query sent to the database.
-        #self.debug_message("Query = ", cursor.mogrify(q, args))
+            if cursor is None:
+                cursor = cnx.cursor()  # Just ignore this for now.
+                cursor_created = True
 
-        cursor.execute(q, args)  # Execute the query.
+            # If debugging is turned on, will print the query sent to the database.
+            #self.debug_message("Query = ", cursor.mogrify(q, args))
 
-        # Technically, INSERT, UPDATE and DELETE do not return results.
-        # Sometimes the connector libraries return the number of created/deleted rows.
-        if fetch:
-            r = cursor.fetchall()  # Return all elements of the result.
-        else:
-            r = None
+            cursor.execute(q, args)  # Execute the query.
 
-        if commit:                  # Do not worry about this for now.
-            cnx.commit()
+            # Technically, INSERT, UPDATE and DELETE do not return results.
+            # Sometimes the connector libraries return the number of created/deleted rows.
+            if fetch:
+                r = cursor.fetchall()  # Return all elements of the result.
+            else:
+                r = None
+
+            if commit:                  # Do not worry about this for now.
+                cnx.commit()
+
+            if cursor_created:
+                cursor.close()
+
+        except Exception as e:
+            print("Exception e = ", e)
+            if commit:
+                cnx.rollback()
+            if cursor_created:
+                cursor.close()
 
         return r
 
@@ -137,11 +167,10 @@ class RDBDataTable(BaseDataTable):
             print("Got exception = ", e)
             raise e
 
-    @classmethod
-    def get_folders(cls):
+    def get_folders(self):
         pass
 
-    def find_by_primary_key(self, key_fields, field_list=None):
+    def find_by_primary_key(self, key_fields, field_list=None, context=None):
         """
 
         :param key_fields: The values for the key_columns, in order, to use to find a record.
@@ -150,6 +179,10 @@ class RDBDataTable(BaseDataTable):
             by the key.
         """
         pass
+        ####### Your Code Goes Here #########
+
+
+        ####### Your Code Goes Here #########
 
     def _template_to_where_clause(self, t):
         """
@@ -157,27 +190,18 @@ class RDBDataTable(BaseDataTable):
         :param t: Query template.
         :return: (WHERE clause, arg values for %s in clause)
         """
-        terms = []
-        args = []
-        w_clause = ""
+        w_clause = None
+        args = None
 
-        # The where clause will be of the for col1=%s, col2=%s, ...
-        # Build a list containing the individual col1=%s
-        # The args passed to +run_q will be the values in the template in the same order.
-        for k, v in t.items():
-            temp_s = k + "=%s "
-            terms.append(temp_s)
-            args.append(v)
+        ####### Your Code Goes Here #########
+        pass
 
-        if len(terms) > 0:
-            w_clause = "WHERE " + " AND ".join(terms)
-        else:
-            w_clause = ""
-            args = None
+        ####### Your Code Goes Here #########
 
         return w_clause, args
 
-    def find_by_template(self, template, field_list=None, limit=None, offset=None, order_by=None, commit=True):
+    def find_by_template(self, template, field_list=None, limit=None, offset=None, order_by=None, commit=True,
+                         context=None):
         """
 
         :param template: A dictionary of the form { "field1" : value1, "field2": value2, ...}
@@ -188,10 +212,12 @@ class RDBDataTable(BaseDataTable):
         :return: A list containing dictionaries. A dictionary is in the list representing each record
             that matches the template. The dictionary only contains the requested fields.
         """
+        ####### Your Code Goes Here #########
         pass
 
+        ####### Your Code Goes Here #########
 
-    def insert(self, new_record):
+    def insert(self, new_record, context=None):
         """
 
         :param new_record: A dictionary representing a row to add to the set of records.
@@ -199,7 +225,7 @@ class RDBDataTable(BaseDataTable):
         """
         pass
 
-    def delete_by_template(self, template):
+    def delete_by_template(self, template, context=None):
         """
 
         Deletes all records that match the template.
@@ -209,7 +235,7 @@ class RDBDataTable(BaseDataTable):
         """
         pass
 
-    def delete_by_key(self, key_fields):
+    def delete_by_key(self, key_fields, context=None):
         """
 
         Delete record with corresponding key.
@@ -219,7 +245,7 @@ class RDBDataTable(BaseDataTable):
         """
         pass
 
-    def update_by_template(self, template, new_values):
+    def update_by_template(self, template, new_values, context=None):
         """
 
         :param template: A template that defines which matching rows to update.
@@ -230,7 +256,7 @@ class RDBDataTable(BaseDataTable):
         """
         pass
 
-    def update_by_key(self, key_fields, new_values):
+    def update_by_key(self, key_fields, new_values, context=None):
         """
 
         :param key_fields: List of values for primary key fields
@@ -241,14 +267,15 @@ class RDBDataTable(BaseDataTable):
         """
         pass
 
-    def load(self):
+    def load(self, rows=None):
         pass
 
-    def save(self):
+    def save(self, context=None):
         pass
 
     def query(self, query_statement, args, context=None):
         pass
+
 
 
 
